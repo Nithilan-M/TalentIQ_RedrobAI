@@ -7,7 +7,7 @@ import { apiService } from "../services/api";
 import { GlassCard } from "../components/GlassCard";
 import { 
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, 
-  Tooltip, PieChart, Pie, Cell 
+  Tooltip, PieChart, Pie, Cell, Legend 
 } from "recharts";
 
 export const ChallengePanel: React.FC = () => {
@@ -400,11 +400,12 @@ export const ChallengePanel: React.FC = () => {
                       data={riskPieData}
                       cx="50%"
                       cy="50%"
-                      innerRadius={55}
-                      outerRadius={75}
+                      innerRadius={50}
+                      outerRadius={70}
                       paddingAngle={4}
                       dataKey="value"
-                      label={({ name, percent }) => `${name}: ${((percent || 0) * 100).toFixed(0)}%`}
+                      labelLine={false}
+                      label={({ name, percent }) => percent > 0 ? `${name}: ${((percent || 0) * 100).toFixed(0)}%` : ""}
                     >
                       {riskPieData.map((_: any, index: number) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -418,6 +419,18 @@ export const ChallengePanel: React.FC = () => {
                         fontSize: '11px',
                         fontFamily: 'Inter, sans-serif',
                         boxShadow: '0 1px 3px 0 rgba(0,0,0,0.05)'
+                      }} 
+                    />
+                    <Legend 
+                      verticalAlign="bottom" 
+                      height={36} 
+                      iconType="circle" 
+                      iconSize={8}
+                      wrapperStyle={{ 
+                        fontSize: '10px', 
+                        fontFamily: 'Inter, sans-serif',
+                        color: '#475569',
+                        paddingTop: '10px'
                       }} 
                     />
                   </PieChart>

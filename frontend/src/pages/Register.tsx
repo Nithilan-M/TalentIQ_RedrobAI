@@ -39,8 +39,8 @@ export const Register: React.FC = () => {
   };
 
   return (
-    <div className="flex min-h-[calc(100vh-3.5rem)] items-center justify-center px-4 py-12 bg-slate-50">
-      <div className="w-full max-w-sm">
+    <div className="flex min-h-screen items-center justify-center px-4 py-12 bg-slate-50">
+      <div className="w-full max-w-md">
         {/* Flat Minimal Dashboard Box */}
         <div className="bg-white p-8 rounded-xl border border-slate-200 shadow-sm">
           <div className="flex flex-col items-center mb-6">

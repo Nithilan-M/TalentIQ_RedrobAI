@@ -14,6 +14,7 @@ export const Navbar: React.FC<NavbarProps> = ({ isDark, toggleTheme }) => {
   const location = useLocation();
   const [jds, setJds] = useState<{ id: number; title: string }[]>([]);
   const [activeJdId, setActiveJdId] = useState<string>("");
+  const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
     if (authService.isAuthenticated()) {
@@ -21,6 +22,7 @@ export const Navbar: React.FC<NavbarProps> = ({ isDark, toggleTheme }) => {
       const savedJd = localStorage.getItem("active_jd_id") || "";
       setActiveJdId(savedJd);
     }
+    setIsOpen(false); // Close mobile menu on navigate
   }, [location.pathname]);
 
   const fetchJds = async () => {
@@ -50,6 +52,10 @@ export const Navbar: React.FC<NavbarProps> = ({ isDark, toggleTheme }) => {
   };
 
   const isActive = (path: string) => location.pathname === path;
+
+  if (location.pathname === "/login" || location.pathname === "/register") {
+    return null;
+  }
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-slate-200 bg-white">
@@ -128,7 +134,7 @@ export const Navbar: React.FC<NavbarProps> = ({ isDark, toggleTheme }) => {
           )}
 
           {/* Controls */}
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2">
             {authService.isAuthenticated() && jds.length > 0 && (
               <div className="flex items-center space-x-1.5">
                 <span className="text-xs text-slate-400 hidden lg:inline">Active Job:</span>
@@ -156,9 +162,83 @@ export const Navbar: React.FC<NavbarProps> = ({ isDark, toggleTheme }) => {
                 <span className="hidden sm:inline">Log out</span>
               </button>
             )}
+
+            {/* Mobile Menu Toggle Button */}
+            {authService.isAuthenticated() && (
+              <button
+                onClick={() => setIsOpen(!isOpen)}
+                className="flex md:hidden h-8 w-8 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition-all cursor-pointer focus:outline-none"
+              >
+                {isOpen ? (
+                  <svg className="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                ) : (
+                  <svg className="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                )}
+              </button>
+            )}
           </div>
         </div>
       </div>
+
+      {/* Mobile Menu Dropdown list */}
+      {authService.isAuthenticated() && isOpen && (
+        <div className="md:hidden border-t border-slate-200 bg-white px-4 py-3.5 space-y-2.5 shadow-sm">
+          <Link
+            to="/"
+            onClick={() => setIsOpen(false)}
+            className={`flex items-center space-x-2.5 px-3 py-2 rounded-md text-xs font-semibold transition-all ${
+              isActive("/") ? "bg-slate-100 text-slate-900" : "text-slate-600 hover:bg-slate-50"
+            }`}
+          >
+            <Users className="h-4 w-4" />
+            <span>Dashboard</span>
+          </Link>
+          <Link
+            to="/challenge"
+            onClick={() => setIsOpen(false)}
+            className={`flex items-center space-x-2.5 px-3 py-2 rounded-md text-xs font-semibold transition-all ${
+              isActive("/challenge") ? "bg-slate-100 text-slate-900" : "text-slate-600 hover:bg-slate-50"
+            }`}
+          >
+            <Sparkles className="h-4 w-4 text-purple-500" />
+            <span>Redrob Challenge</span>
+          </Link>
+          <Link
+            to="/upload-jd"
+            onClick={() => setIsOpen(false)}
+            className={`flex items-center space-x-2.5 px-3 py-2 rounded-md text-xs font-semibold transition-all ${
+              isActive("/upload-jd") ? "bg-slate-100 text-slate-900" : "text-slate-600 hover:bg-slate-50"
+            }`}
+          >
+            <Upload className="h-4 w-4" />
+            <span>Upload JD</span>
+          </Link>
+          <Link
+            to="/upload-resume"
+            onClick={() => setIsOpen(false)}
+            className={`flex items-center space-x-2.5 px-3 py-2 rounded-md text-xs font-semibold transition-all ${
+              isActive("/upload-resume") ? "bg-slate-100 text-slate-900" : "text-slate-600 hover:bg-slate-50"
+            }`}
+          >
+            <Briefcase className="h-4 w-4" />
+            <span>Parse Resumes</span>
+          </Link>
+          <Link
+            to="/analytics"
+            onClick={() => setIsOpen(false)}
+            className={`flex items-center space-x-2.5 px-3 py-2 rounded-md text-xs font-semibold transition-all ${
+              isActive("/analytics") ? "bg-slate-100 text-slate-900" : "text-slate-600 hover:bg-slate-50"
+            }`}
+          >
+            <BarChart2 className="h-4 w-4" />
+            <span>Analytics</span>
+          </Link>
+        </div>
+      )}
     </nav>
   );
 };
