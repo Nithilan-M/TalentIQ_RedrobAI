@@ -34,13 +34,12 @@ async def generate_interview_questions(
     {json.dumps(candidate_profile, indent=2)}
     """
     
-    response_text = await call_gemini_async(prompt, json_mode=True, temperature=0.5)
-    
     try:
+        response_text = await call_gemini_async(prompt, json_mode=True, temperature=0.5)
         data = json.loads(response_text)
         return data.get("questions", [])
     except Exception as e:
-        print(f"Failed to parse interview questions JSON response: {e}. Raw: {response_text}")
+        print(f"Failed to generate interview questions: {e}")
         return [
             {
                 "category": "Behavioral",

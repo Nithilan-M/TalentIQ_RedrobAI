@@ -1,4 +1,5 @@
-const API_URL = "http://127.0.0.1:8000/api/auth";
+const BASE_API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+const API_URL = `${BASE_API}/api/auth`;
 
 export const authService = {
   async register(email: string, password: string) {

@@ -1,6 +1,7 @@
 import { authService } from "./auth";
 
-const BASE_URL = "http://127.0.0.1:8000/api";
+const BASE_API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+const BASE_URL = `${BASE_API}/api`;
 
 async function request(endpoint: string, options: RequestInit = {}) {
   const token = authService.getToken();

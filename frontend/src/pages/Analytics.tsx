@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, 
-  ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area 
+  ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, Legend 
 } from "recharts";
 import { 
   AlertCircle, BarChart2, Briefcase, GraduationCap, Award, 
@@ -168,12 +168,13 @@ export const Analytics: React.FC = () => {
                     data={experience_distribution}
                     cx="50%"
                     cy="50%"
-                    innerRadius={60}
-                    outerRadius={85}
+                    innerRadius={55}
+                    outerRadius={75}
                     paddingAngle={4}
                     dataKey="count"
                     nameKey="range"
-                    label={({ name, percent }) => `${name} (${((percent || 0) * 100).toFixed(0)}%)`}
+                    labelLine={false}
+                    label={({ name, percent }) => percent > 0 ? `${name} (${((percent || 0) * 100).toFixed(0)}%)` : ""}
                   >
                     {experience_distribution.map((_: any, index: number) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -187,6 +188,18 @@ export const Analytics: React.FC = () => {
                       fontSize: '11px',
                       fontFamily: 'Inter, sans-serif',
                       boxShadow: '0 1px 3px 0 rgba(0,0,0,0.05)'
+                    }} 
+                  />
+                  <Legend 
+                    verticalAlign="bottom" 
+                    height={36} 
+                    iconType="circle" 
+                    iconSize={8}
+                    wrapperStyle={{ 
+                      fontSize: '10px', 
+                      fontFamily: 'Inter, sans-serif',
+                      color: '#475569',
+                      paddingTop: '10px'
                     }} 
                   />
                 </PieChart>

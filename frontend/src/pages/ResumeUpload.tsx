@@ -11,13 +11,34 @@ interface UploadingFile {
   candidateId?: number;
   overallScore?: number;
   decision?: string;
+  progressPercent?: number;
+  currentStage?: string;
 }
 
 export const ResumeUpload: React.FC = () => {
   const navigate = useNavigate();
   const [activeJdId, setActiveJdId] = useState<number | null>(null);
   const [activeJdTitle, setActiveJdTitle] = useState<string>("");
-  const [files, setFiles] = useState<UploadingFile[]>([]);
+  
+  const [files, setFiles] = useState<UploadingFile[]>(() => {
+    const saved = localStorage.getItem("talent_iq_uploaded_files");
+    if (saved) {
+      try {
+        const parsed: UploadingFile[] = JSON.parse(saved);
+        // Reset any active loading states to 'failed' because the component unmounted
+        return parsed.map(f => {
+          if (f.status === "extracting" || f.status === "grading") {
+            return { ...f, status: "failed", error: "Evaluation interrupted" };
+          }
+          return f;
+        });
+      } catch (e) {
+        return [];
+      }
+    }
+    return [];
+  });
+
   const [dragActive, setDragActive] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [globalError, setGlobalError] = useState<string | null>(null);
@@ -25,6 +46,22 @@ export const ResumeUpload: React.FC = () => {
   useEffect(() => {
     loadActiveJd();
   }, []);
+
+  // Persist files list metadata in localStorage whenever it changes
+  useEffect(() => {
+    const serialized = files.map(f => ({
+      name: f.name,
+      size: f.size,
+      status: f.status,
+      error: f.error,
+      candidateId: f.candidateId,
+      overallScore: f.overallScore,
+      decision: f.decision,
+      progressPercent: f.progressPercent,
+      currentStage: f.currentStage
+    }));
+    localStorage.setItem("talent_iq_uploaded_files", JSON.stringify(serialized));
+  }, [files]);
 
   const loadActiveJd = async () => {
     const savedJdId = localStorage.getItem("active_jd_id");
@@ -76,6 +113,8 @@ export const ResumeUpload: React.FC = () => {
       })
       .map((file) => ({
         file,
+        name: file.name,
+        size: file.size,
         status: "queued"
       }));
     
@@ -92,36 +131,82 @@ export const ResumeUpload: React.FC = () => {
     setProcessing(true);
     setGlobalError(null);
 
-    // We process sequentially or in batch to show live extraction & debate progress state changes!
-    // Since our backend accepts a list of files, we can upload them in batches, or we can send files one-by-one to provide granular UI loading feedback!
-    // Uploading one-by-one is MUCH better for UX as it shows individual progress bars for each candidate!
     for (let i = 0; i < files.length; i++) {
       if (files[i].status === "completed") continue;
       
-      // Update status to extracting text
-      updateFileStatus(i, { status: "extracting" });
+      if (!files[i].file) {
+        updateFileStatus(i, { 
+          status: "failed", 
+          error: "Please re-upload this file to run evaluation." 
+        });
+        continue;
+      }
+      
+      // Initialize progress values
+      updateFileStatus(i, { 
+        status: "grading",
+        progressPercent: 0,
+        currentStage: "Extracting raw text from resume..."
+      });
+
+      let progress = 0;
+      const progressInterval = setInterval(() => {
+        // Increment progress based on current progress band to make it feel natural
+        if (progress < 15) {
+          progress += Math.floor(Math.random() * 3) + 1; // 1-3%
+        } else if (progress < 40) {
+          progress += Math.floor(Math.random() * 2) + 1; // 1-2%
+        } else if (progress < 60) {
+          progress += Math.floor(Math.random() * 2) + 1;
+        } else if (progress < 85) {
+          progress += Math.floor(Math.random() * 1.5) + 1;
+        } else if (progress < 98) {
+          progress += 1;
+        }
+
+        if (progress > 98) progress = 98;
+
+        // Map progress percentage to current stage text
+        let stage = "Extracting raw text from resume...";
+        if (progress >= 15 && progress < 40) {
+          stage = "AI structuring of experiences & projects...";
+        } else if (progress >= 40 && progress < 60) {
+          stage = "Calculating skills match & scoring...";
+        } else if (progress >= 60 && progress < 85) {
+          stage = "Advocate vs. Skeptic committee debating...";
+        } else if (progress >= 85) {
+          stage = "Reconciling verdict consensus...";
+        }
+
+        updateFileStatus(i, { 
+          progressPercent: progress, 
+          currentStage: stage 
+        });
+      }, 300);
 
       try {
-        // Mock a slight stage transition for user visual cue
-        updateFileStatus(i, { status: "grading" });
-        
         // Post file to backend
         const result = await apiService.uploadResumes(activeJdId, [files[i].file]);
+        
+        clearInterval(progressInterval);
         
         if (result.successful && result.successful.length > 0) {
           const info = result.successful[0];
           updateFileStatus(i, {
             status: "completed",
+            progressPercent: 100,
+            currentStage: "Evaluation completed successfully",
             candidateId: info.candidate_id,
             overallScore: info.overall_score,
             decision: info.decision
           });
         } else {
           const errorMsg = result.failed && result.failed.length > 0 ? result.failed[0].error : "Parsing failure";
-          updateFileStatus(i, { status: "failed", error: errorMsg });
+          updateFileStatus(i, { status: "failed", error: errorMsg, progressPercent: 0 });
         }
       } catch (err: any) {
-        updateFileStatus(i, { status: "failed", error: err.message || "Failed to contact backend." });
+        clearInterval(progressInterval);
+        updateFileStatus(i, { status: "failed", error: err.message || "Failed to contact backend.", progressPercent: 0 });
       }
     }
     
@@ -255,18 +340,43 @@ export const ResumeUpload: React.FC = () => {
               <div className="divide-y divide-slate-100 px-6">
                 {files.map((f, idx) => (
                   <div key={idx} className="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 first:pt-4 last:pb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-50 border border-slate-200 text-slate-400">
-                        <FileText className="h-4.5 w-4.5" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-50 border border-slate-200 text-slate-400">
+                          <FileText className="h-4.5 w-4.5" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold truncate max-w-[320px] text-slate-800">
+                            {f.name}
+                          </p>
+                          <p className="text-xs text-slate-400 mt-0.5">
+                            {(f.size / 1024).toFixed(1)} KB
+                          </p>
+                        </div>
                       </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold truncate max-w-[250px] text-slate-800">
-                          {f.file.name}
+                      
+                      {/* Live stepper progress indicators */}
+                      {(f.status === "extracting" || f.status === "grading") && (
+                        <div className="mt-2.5 w-full max-w-sm sm:max-w-md pl-12">
+                          <div className="flex justify-between text-[11px] font-medium text-slate-500 mb-1">
+                            <span className="truncate text-red-600 font-semibold">{f.currentStage || "Processing..."}</span>
+                            <span className="shrink-0 ml-2 font-semibold text-slate-700">{f.progressPercent || 0}%</span>
+                          </div>
+                          <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden border border-slate-200/50">
+                            <div 
+                              className="h-full bg-red-500 rounded-full transition-all duration-300 ease-out"
+                              style={{ width: `${f.progressPercent || 0}%` }}
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* If failed, show error message */}
+                      {f.status === "failed" && f.error && (
+                        <p className="mt-1.5 pl-12 text-[11px] text-red-500 font-medium break-words">
+                          {f.error}
                         </p>
-                        <p className="text-xs text-slate-400 mt-0.5">
-                          {(f.file.size / 1024).toFixed(1)} KB
-                        </p>
-                      </div>
+                      )}
                     </div>
 
                     {/* Progress States */}
@@ -277,17 +387,13 @@ export const ResumeUpload: React.FC = () => {
                         </span>
                       )}
                       
-                      {f.status === "extracting" && (
-                        <span className="flex items-center gap-1.5 text-xs font-semibold text-blue-600">
-                          <span className="h-1.5 w-1.5 rounded-full bg-blue-600 animate-ping" />
-                          Extracting text...
-                        </span>
-                      )}
-
-                      {f.status === "grading" && (
-                        <span className="flex items-center gap-1.5 text-xs font-semibold text-amber-600">
-                          <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-ping" />
-                          AI Committee Debating...
+                      {(f.status === "extracting" || f.status === "grading") && (
+                        <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-semibold bg-red-50 text-red-600 border border-red-100">
+                          <svg className="animate-spin h-3 w-3 text-red-500" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                          </svg>
+                          Evaluating...
                         </span>
                       )}
 

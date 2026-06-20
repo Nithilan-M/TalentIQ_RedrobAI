@@ -26,5 +26,13 @@ async def generate_skeptic_feedback(candidate_profile: dict, job_description: di
     {json.dumps(candidate_profile, indent=2)}
     """
     
-    feedback = await call_gemini_async(prompt, json_mode=False, temperature=0.7)
-    return feedback
+    try:
+        feedback = await call_gemini_async(prompt, json_mode=False, temperature=0.7)
+        return feedback
+    except Exception as e:
+        print(f"Skeptic agent failed: {e}. Falling back to default report.")
+        return f"""### Skeptic Evaluation (Fallback)
+- **Hiring Risks**: Some required skills in the job description are not explicitly highlighted in the resume.
+- **Experience Gaps**: Verify employment duration and active project contributions during interviews.
+- **Areas of Concern**: Need to test deep technical expertise on production systems and architectural designs.
+"""

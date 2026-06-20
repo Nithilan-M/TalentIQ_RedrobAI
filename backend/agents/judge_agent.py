@@ -41,15 +41,14 @@ async def evaluate_committee_decision(
     {skeptic_report}
     """
     
-    response_text = await call_gemini_async(prompt, json_mode=True, temperature=0.2)
-    
     try:
+        response_text = await call_gemini_async(prompt, json_mode=True, temperature=0.2)
         decision_data = json.loads(response_text)
         return decision_data
     except Exception as e:
-        print(f"Failed to parse judge agent JSON response: {e}. Raw: {response_text}")
+        print(f"Failed to parse judge agent: {e}")
         return {
             "decision": "Borderline",
             "confidence_score": 50,
-            "summary": "The committee could not reach an automated consensus due to evaluation formatting errors. Recruiter review recommended."
+            "summary": "Committee decision generated under rate-limit fallback. Advise manual profile check."
         }
