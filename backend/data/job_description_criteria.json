@@ -1,0 +1,72 @@
+{
+  "title": "Senior AI Engineer \u2014 Founding Team",
+  "skills_required": [
+    "embeddings",
+    "vector databases",
+    "python",
+    "evaluation frameworks",
+    "search",
+    "retrieval",
+    "ranking",
+    "ndcg",
+    "mrr",
+    "map"
+  ],
+  "skills_preferred": [
+    "llm fine-tuning",
+    "lora",
+    "qlora",
+    "peft",
+    "learning-to-rank",
+    "xgboost",
+    "lightgbm",
+    "distributed systems",
+    "large-scale inference"
+  ],
+  "experience_required": "5-9 years of experience in product companies",
+  "responsibilities": [
+    "Own the intelligence layer",
+    "Audit search algorithms",
+    "Ship v2 ranking system",
+    "Set up evaluation infrastructure",
+    "Mentor hires",
+    "System architecture decisions"
+  ],
+  "industry": "HR-tech / marketplaces / talent intelligence",
+  "technologies": [
+    "Python",
+    "FAISS",
+    "sentence-transformers",
+    "XGBoost",
+    "LightGBM",
+    "Scikit-Learn",
+    "Pinecone",
+    "Weaviate",
+    "Qdrant",
+    "Milvus",
+    "OpenSearch",
+    "Elasticsearch"
+  ],
+  "leadership_expectations": [
+    "Own architecture decisions",
+    "Mentor junior hires",
+    "Collaborate with PMs"
+  ],
+  "product_mindset": [
+    "Bias toward shipping over research",
+    "Willingness to write code",
+    "Mentorship focus"
+  ],
+  "must_have_skills": [
+    "Python",
+    "embeddings-based retrieval systems",
+    "vector databases or hybrid search",
+    "evaluation frameworks (NDCG, MRR, MAP)"
+  ],
+  "nice_to_have_skills": [
+    "XGBoost",
+    "LightGBM",
+    "LLM fine-tuning",
+    "marketplace product exposure"
+  ]
+}

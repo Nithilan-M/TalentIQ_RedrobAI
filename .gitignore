@@ -1,0 +1,15 @@
+# Create file or add these entries:
+node_modules/
+__pycache__/
+*.pyc
+.env
+.venv/
+venv/
+dist/
+build/
+
+# Ignore large/temporary local data files and databases
+India_runs_data_and_ai_challenge/candidates.jsonl
+*.db
+backend/data/*.npy
+backend/temp_uploads/
