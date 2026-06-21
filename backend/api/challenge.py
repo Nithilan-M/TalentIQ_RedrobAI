@@ -15,32 +15,46 @@ from backend.validator.submission_validator import SubmissionValidator
 
 router = APIRouter(prefix="/api/challenge", tags=["Redrob Challenge"])
 
-@router.post("/run", status_code=status.HTTP_200_OK)
+@router.post("/run")
 async def run_challenge_pipeline(
     file: UploadFile = File(None),
     current_user: User = Depends(get_current_user)
 ):
     """
     Triggers the end-to-end offline candidate discovery and ranking pipeline.
+    Streams execution progress updates as NDJSON.
     """
-    try:
-        temp_jsonl_path = None
-        if file:
-            import shutil
+    from fastapi.responses import StreamingResponse
+    import shutil
+
+    temp_jsonl_path = None
+    if file:
+        try:
             # Save uploaded candidates.jsonl to temp directory
             temp_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "temp_uploads")
             os.makedirs(temp_dir, exist_ok=True)
             temp_jsonl_path = os.path.join(temp_dir, "challenge_uploaded_candidates.jsonl")
             with open(temp_jsonl_path, "wb") as buffer:
                 shutil.copyfileobj(file.file, buffer)
-        
-        results = await run_offline_ranking_pipeline(input_jsonl=temp_jsonl_path)
-        return results
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Pipeline execution failed: {str(e)}"
-        )
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to save uploaded file: {str(e)}"
+            )
+
+    async def event_generator():
+        try:
+            async for update in run_offline_ranking_pipeline(input_jsonl=temp_jsonl_path):
+                yield json.dumps(update) + "\n"
+        except Exception as e:
+            yield json.dumps({
+                "status": "failed",
+                "progress": 100,
+                "message": f"Pipeline execution failed: {str(e)}",
+                "step": "failed"
+            }) + "\n"
+
+    return StreamingResponse(event_generator(), media_type="application/x-ndjson")
 
 @router.get("/jd", status_code=status.HTTP_200_OK)
 def get_structured_jd(

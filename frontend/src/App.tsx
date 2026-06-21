@@ -12,16 +12,18 @@ import CandidateDetails from "./pages/CandidateDetails";
 import CandidateCompare from "./pages/CandidateCompare";
 import Analytics from "./pages/Analytics";
 import ChallengePanel from "./pages/ChallengePanel";
+import { ChallengeProvider } from "./context/ChallengeContext";
 
 export const App: React.FC = () => {
   const { isDark, toggleTheme } = useTheme();
 
   return (
     <Router>
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
-        <Navbar isDark={isDark} toggleTheme={toggleTheme} />
-        
-        <Routes>
+      <ChallengeProvider>
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
+          <Navbar isDark={isDark} toggleTheme={toggleTheme} />
+          
+          <Routes>
           {/* Public Routes */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
@@ -89,7 +91,8 @@ export const App: React.FC = () => {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
-    </Router>
+    </ChallengeProvider>
+  </Router>
   );
 };
 

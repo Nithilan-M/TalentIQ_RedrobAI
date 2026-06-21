@@ -67,3 +67,12 @@ body {
   @apply rounded-full bg-slate-200 hover:bg-slate-300;
 }
 
+@keyframes progress-bar-stripes {
+  from { background-position: 1rem 0; }
+  to { background-position: 0 0; }
+}
+
+.animate-stripes {
+  animation: progress-bar-stripes 1s linear infinite;
+}
+

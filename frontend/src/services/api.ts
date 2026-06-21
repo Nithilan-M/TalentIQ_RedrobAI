@@ -128,6 +128,61 @@ export const apiService = {
     return request("/challenge/run", { method: "POST" });
   },
 
+  async runChallengePipelineStream(file: File | undefined, onProgress: (update: any) => void) {
+    const token = authService.getToken();
+    const headers = new Headers();
+    if (token) {
+      headers.set("Authorization", `Bearer ${token}`);
+    }
+    
+    let body: any = undefined;
+    if (file) {
+      body = new FormData();
+      body.append("file", file);
+    }
+
+    const response = await fetch(`${BASE_URL}/challenge/run`, {
+      method: "POST",
+      headers,
+      body,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || `Request failed with status ${response.status}`);
+    }
+
+    if (!response.body) {
+      throw new Error("No response body to read stream");
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder("utf-8");
+    let buffer = "";
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      
+      // Save the last partial line back to the buffer
+      buffer = lines.pop() || "";
+
+      for (const line of lines) {
+        if (line.trim()) {
+          try {
+            const parsed = JSON.parse(line);
+            onProgress(parsed);
+          } catch (e) {
+            console.error("Failed to parse stream line:", line, e);
+          }
+        }
+      }
+    }
+  },
+
   async getChallengeJD() {
     return request("/challenge/jd");
   },

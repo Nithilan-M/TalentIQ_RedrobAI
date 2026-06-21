@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { 
   Play, Sparkles, CheckCircle2, AlertCircle, Clock, Search, 
-  Filter, FileText, BarChart2, ShieldAlert, RefreshCw, UploadCloud
+  Filter, FileText, BarChart2, ShieldAlert, RefreshCw, UploadCloud, Loader2
 } from "lucide-react";
 import { apiService } from "../services/api";
 import { GlassCard } from "../components/GlassCard";
@@ -9,15 +9,25 @@ import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, 
   Tooltip, PieChart, Pie, Cell, Legend 
 } from "recharts";
+import { useChallenge } from "../context/ChallengeContext";
 
 export const ChallengePanel: React.FC = () => {
   
-  // Pipeline state
-  const [running, setRunning] = useState(false);
-  const [results, setResults] = useState<any>(null);
-  const [validation, setValidation] = useState<any>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  // Pipeline global state
+  const {
+    running,
+    results,
+    validation,
+    error,
+    selectedFile,
+    setSelectedFile,
+    progressPercent,
+    progressStep,
+    progressLogs,
+    runPipeline: handleRunPipeline,
+    setError
+  } = useChallenge();
+  
   const [dragActive, setDragActive] = useState(false);
   
   // Advanced search filters state
@@ -28,30 +38,60 @@ export const ChallengePanel: React.FC = () => {
   const [filterRisk, setFilterRisk] = useState("all");
   const [showFilters, setShowFilters] = useState(false);
 
-  // Load any existing pipeline result on mount
-  useEffect(() => {
-    checkExistingSubmission();
-  }, []);
 
-  const checkExistingSubmission = async () => {
-    try {
-      const val = await apiService.validateChallengeSubmission();
-      setValidation(val);
-      const analytics = await apiService.getChallengeAnalytics();
-      if (analytics.pipeline_executed) {
-        // Mock a quick loading reload or show that pipeline was previously run
-        setResults({
-          validation_passed: val.passed,
-          validation_errors: val.errors,
-          validation_warnings: val.warnings,
-          feature_importances: analytics.feature_importances,
-          score_distribution: analytics.score_distribution
-        });
-      }
-    } catch (err) {
-      console.log("No previous submission compiled yet.");
+
+  // Autoscroll logs console
+  useEffect(() => {
+    const consoleElem = document.getElementById("logs-console");
+    if (consoleElem) {
+      consoleElem.scrollTop = consoleElem.scrollHeight;
+    }
+  }, [progressLogs]);
+
+  const isStageDone = (key: string) => {
+    switch (key) {
+      case "load_jd":
+        return progressLogs.some(l => l.includes("Loaded Job Description"));
+      case "load_cache":
+        return progressLogs.some(l => l.includes("Loaded") && l.includes("profiles into cache"));
+      case "load_vector_index":
+        return progressLogs.some(l => l.includes("Loaded/Built vector index"));
+      case "semantic_retrieval":
+        return progressLogs.some(l => l.includes("Retrieved Top") && l.includes("candidates"));
+      case "feature_eng_and_ranking":
+        return progressLogs.some(l => l.includes("Engineered features"));
+      case "write_csv":
+        return progressLogs.some(l => l.includes("Exported submission CSV"));
+      case "validation":
+        return progressLogs.some(l => l.includes("Validated submission CSV"));
+      default:
+        return false;
     }
   };
+
+  const isStageActive = (key: string) => {
+    if (progressStep.includes("Failed") || progressStep.includes("complete")) return false;
+    switch (key) {
+      case "load_jd":
+        return progressStep.includes("Job Description") && !isStageDone("load_jd");
+      case "load_cache":
+        return progressStep.includes("candidates") && !isStageDone("load_cache");
+      case "load_vector_index":
+        return progressStep.includes("vector index") && !isStageDone("load_vector_index");
+      case "semantic_retrieval":
+        return progressStep.includes("Semantic Retrieval") && !isStageDone("semantic_retrieval");
+      case "feature_eng_and_ranking":
+        return progressStep.includes("Hybrid Ranker") && !isStageDone("feature_eng_and_ranking");
+      case "write_csv":
+        return progressStep.includes("submission CSV") && !isStageDone("write_csv");
+      case "validation":
+        return progressStep.includes("Validating submission") && !isStageDone("validation");
+      default:
+        return false;
+    }
+  };
+
+
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -90,24 +130,7 @@ export const ChallengePanel: React.FC = () => {
     setSelectedFile(selectedFile);
   };
 
-  const handleRunPipeline = async () => {
-    setRunning(true);
-    setError(null);
-    setResults(null);
-    setValidation(null);
-    
-    try {
-      const data = await apiService.runChallengePipeline(selectedFile || undefined);
-      setResults(data);
-      // Immediately run validation
-      const val = await apiService.validateChallengeSubmission();
-      setValidation(val);
-    } catch (err: any) {
-      setError(err.message || "Pipeline execution failed. Check file or backend log.");
-    } finally {
-      setRunning(false);
-    }
-  };
+
 
   // Filter the list of top candidates locally based on advanced search criteria
   const getFilteredCandidates = () => {
@@ -273,6 +296,99 @@ export const ChallengePanel: React.FC = () => {
           </label>
         )}
       </GlassCard>
+
+      {/* Real-time Progress Section */}
+      {running && (
+        <div className="mb-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm overflow-hidden">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                <RefreshCw className="h-4 w-4 animate-spin text-red-500" />
+                Pipeline Execution Progress
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                {progressStep || "Initializing..."}
+              </p>
+            </div>
+            <span className="text-sm font-bold text-red-500">{progressPercent}%</span>
+          </div>
+          
+          {/* Animated Custom Progress Bar */}
+          <div className="w-full bg-slate-100 rounded-full h-2.5 mb-6 overflow-hidden relative">
+            <div 
+              className="bg-gradient-to-r from-red-500 via-orange-500 to-red-650 h-full rounded-full transition-all duration-300 ease-out"
+              style={{ width: `${progressPercent}%` }}
+            />
+            <div className="absolute inset-0 bg-[linear-gradient(45deg,rgba(255,255,255,0.15)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.15)_50%,rgba(255,255,255,0.15)_75%,transparent_75%,transparent)] bg-[size:1rem_1rem] animate-stripes opacity-40 pointer-events-none" />
+          </div>
+
+          {/* Stepper Checklist */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-3.5">
+              <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Execution Stages</h4>
+              <div className="space-y-3">
+                {[
+                  { key: "load_jd", label: "Load Job Description" },
+                  { key: "load_cache", label: "Load Candidates Cache" },
+                  { key: "load_vector_index", label: "Build/Load FAISS Index" },
+                  { key: "semantic_retrieval", label: "FAISS Semantic Retrieval" },
+                  { key: "feature_eng_and_ranking", label: "LTR Feature Eng & Ranking" },
+                  { key: "write_csv", label: "Export submission CSV" },
+                  { key: "validation", label: "Run Submission Validation" }
+                ].map((stage, idx) => {
+                  const isDone = isStageDone(stage.key);
+                  const isActive = isStageActive(stage.key);
+
+                  return (
+                    <div key={idx} className="flex items-center gap-3 text-xs">
+                      {isDone ? (
+                        <CheckCircle2 className="h-4.5 w-4.5 text-emerald-500 shrink-0" />
+                      ) : isActive ? (
+                        <Loader2 className="h-4.5 w-4.5 text-red-500 animate-spin shrink-0" />
+                      ) : (
+                        <div className="h-4.5 w-4.5 rounded-full border border-slate-200 bg-slate-50 shrink-0 flex items-center justify-center text-[10px] font-semibold text-slate-400">
+                          {idx + 1}
+                        </div>
+                      )}
+                      <span className={`font-medium ${isDone ? "text-slate-500 line-through" : isActive ? "text-red-650 font-semibold" : "text-slate-400"}`}>
+                        {stage.label}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Live Console Output */}
+            <div className="flex flex-col bg-slate-950 rounded-xl p-4 font-mono text-[10px] text-emerald-400 h-64 border border-slate-800 shadow-inner">
+              <div className="border-b border-slate-800 pb-2 mb-2 flex items-center justify-between text-slate-400 font-bold uppercase tracking-wider text-[9px]">
+                <span>Logs Console</span>
+                <span className="flex h-2 w-2 relative">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+              </div>
+              <div 
+                id="logs-console"
+                className="flex-1 overflow-y-auto space-y-1.5 scrollbar-thin scrollbar-thumb-slate-800"
+              >
+                {progressLogs.map((log, i) => (
+                  <div key={i} className="flex items-start gap-2 leading-relaxed">
+                    <span className="text-slate-600 shrink-0">&gt;</span>
+                    <span>{log}</span>
+                  </div>
+                ))}
+                {running && (
+                  <div className="flex items-center gap-1.5 text-slate-500 animate-pulse">
+                    <span>&gt;</span>
+                    <span className="inline-block w-1.5 h-3 bg-emerald-400" />
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="mb-6 flex items-start gap-2.5 rounded-lg bg-red-50 p-4 border border-red-200 text-xs font-medium text-red-600">
